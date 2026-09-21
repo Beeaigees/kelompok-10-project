@@ -1,6 +1,5 @@
-import { Button } from "@/components/ui/button";
+import { Button } from "../components/ui/button";
 import { Coffee } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 
 export const metadata = {
@@ -13,8 +12,9 @@ export default function Utama() {
     <div className="relative bg-muted flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10">
       <h1 className="text-3xl font-bold">Welcome to Cafe Web Application</h1>{" "}
       <Coffee size={48} />
+      <div className="absolute right-1 p-3"></div>
       <div className="">
-        <Button variant="">
+        <Button>
           <Link href="/home">Start</Link>
         </Button>
       </div>

@@ -1,5 +1,6 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { ThemeProvider } from "next-themes";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -20,7 +21,14 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className={` h-full antialiased`} suppressHydrationWarning>
       <body className={`${geistSans.className}  min-h-full flex flex-col`}>
-        {children}
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );
