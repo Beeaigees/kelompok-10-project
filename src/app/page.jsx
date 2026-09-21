@@ -15,7 +15,7 @@ export default function Utama() {
       <div className="absolute right-1 p-3"></div>
       <div className="">
         <Button>
-          <Link href="/home">Start</Link>
+          <Link href="/cashier">Start</Link>
         </Button>
       </div>
     </div>

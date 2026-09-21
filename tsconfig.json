@@ -1,11 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2017",
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext"
-    ],
+    "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": false,
@@ -21,17 +17,18 @@
       {
         "name": "next"
       }
-    ]
+    ],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
   "include": [
     "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
-    "**/*.mts",
-    "**/*.ts",
-    "**/*.tsx"
-,     "src/app/(dashboard)/layout.jsx", "src/components/common/theme-provider.jsx", "src/components/ui/button.tsx", "src/components/ui/dropdown-menu.tsx"  ],
-  "exclude": [
-    "node_modules"
-  ]
+    "**/*.mts"
+  ],
+  "exclude": ["node_modules"]
 }
