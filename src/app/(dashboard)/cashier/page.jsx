@@ -1,7 +1,9 @@
-export default function Cashier() {
+import Cashier from "./_components/Cashier";
+
+export default function CashierPage() {
   return (
     <>
-      <h1 className="">this is cashier page</h1>
+    <Cashier />
     </>
   );
 }
