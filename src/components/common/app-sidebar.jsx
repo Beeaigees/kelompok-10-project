@@ -77,7 +77,7 @@ export function AppSidebar() {
 
               <Badge className="bg-green-300 text-green-800 dark:bg-green-950 dark:text-green-300">
                 <Dot size={64} />
-                <span className="font-semibold">Live</span>
+                <p className="font-semibold">Live</p>
               </Badge>
             </div>
           </SidebarMenuItem>
