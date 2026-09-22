@@ -16,6 +16,7 @@ export default function Utama() {
       <div className="">
         <Button>
           <Link href="/cashier">Start</Link>
+          
         </Button>
       </div>
     </div>
