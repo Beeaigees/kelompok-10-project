@@ -7,7 +7,7 @@ export default function ItemModifier() {
 
     <Card>
       <CardHeader>
-        <CardTitle><SlidersHorizontal/> Active item Modifiers(Selected/Last Added)</CardTitle>
+        <CardTitle className="flex gap-2"><SlidersHorizontal/> Extras</CardTitle>
         
       </CardHeader>
     <div className="flex items-start gap-2">
