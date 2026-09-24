@@ -11,27 +11,27 @@ export default function ItemModifier() {
       </CardHeader>
       <CardContent>
         <p>DRINK SIZE</p>
-        <Button>8 oz</Button>
-        <Button>12 oz</Button>
-        <Button>16 oz</Button>
+        <Button>Small</Button>
+        <Button>Medium</Button>
+        <Button>Large</Button>
       </CardContent>
       <CardContent>
         <p>MILK SUB</p>
-        <Button>whole</Button>
-        <Button>Oat (+$0.80)</Button>
+        <Button>Regular</Button>
+        <Button>Oat(+$0.80)</Button>
         <Button>Almond</Button>
       </CardContent>
       <CardContent>
         <p>SHOT TUNING</p>
         <Button>Single</Button>
         <Button>Double</Button>
-        <Button>+Shout($1.20)</Button>
+        <Button>Triple ($1.20)</Button>
       </CardContent>
       <CardContent>
-        <p>TEMP & SWEET</p>
-        <Button>Extra Hot</Button>
-        <Button>Light Ice</Button>
-        <Button>Vanilla(+$0.60)</Button>
+        <p>EXTRA ICE</p>
+        <Button>No Ice</Button>
+        <Button>With Ice</Button>
+        <Button>Less Ice</Button>
       </CardContent>
     </Card>
     </>
