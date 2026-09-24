@@ -30,7 +30,7 @@ export default function DashboardDate() {
     day: "numeric",
   });
   return (
-    <Badge className="">
+    <Badge className="" variant="secondary">
       <Clock size={64} />
       <p className="font-semibold">
         {timeString} - {dateString}
