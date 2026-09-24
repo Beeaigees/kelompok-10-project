@@ -10,7 +10,8 @@ import { ModeToggle } from "../../components/common/Mode-toggle";
 import { Separator } from "../../components/ui/separator";
 import { AppSidebar } from "../../components/common/app-sidebar";
 import DashboardTimeShift from "./_components/dashboard-time-shift";
-import DashboardDate from "./_components/dashboard_date";
+import DashboardDate from "./_components/dashboard-date";
+import DashboardRecall from "./_components/dashboard-recall";
 export default function DashboardLayout({ children }) {
   return (
     <SidebarProvider>
@@ -30,6 +31,8 @@ export default function DashboardLayout({ children }) {
               <DashboardTimeShift />
               <Separator orientation="vertical" className="h-4 self-center" />
               <DashboardDate />
+              <Separator orientation="vertical" className="h-4 self-center" />
+              <DashboardRecall />
               <Separator orientation="vertical" className="h-4 self-center" />
               <ModeToggle />
             </div>
