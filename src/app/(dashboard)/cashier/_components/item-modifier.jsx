@@ -30,7 +30,7 @@ export default function ItemModifier() {
         <Button>Triple ($1.20)</Button>
       </CardContent>
       <CardContent className="p-0">
-        <p>EXTRA ICE</p>
+        <p>EXTRA ICE</p>  
         <Button>No Ice</Button>
         <Button>With Ice</Button>
         <Button>Less Ice</Button>
