@@ -2,7 +2,7 @@
 
 import { useCart } from "./CartContext";
 
-export default function Ticket({ ticketNumber = "108", customerName = "" }) {
+export default function Ticket({ ticketNumber = "0", customerName = "" }) {
   const {
     items,
     updateQty,
