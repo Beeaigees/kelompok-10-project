@@ -53,7 +53,7 @@ export default function ItemModifier() {
           <SlidersHorizontal className="h-4 w-4" />
           {activeProduct
             ? `Modifiers for: ${activeProduct.name}`
-            : "Active Item Modifiers (Selected/Last Added)"}
+            : "Extras"}
         </CardTitle>
       </CardHeader>
 
