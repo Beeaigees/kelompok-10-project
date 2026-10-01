@@ -4,11 +4,10 @@ import { createContext, useContext, useState, useCallback } from "react";
 
 const CartContext = createContext(null);
 
-const TAX_RATE = 0.088; // 8.8% sesuai contoh di desain, sesuaikan / ambil dari config
+const TAX_RATE = 0.088;
 
 export function CartProvider({ children }) {
   const [items, setItems] = useState([]);
-  const [discountPercent, setDiscountPercent] = useState(0); // contoh: staff perk 10%
 
   // Dipanggil dari card produk saat tombol "+" ditekan,
   // membawa extras yang sudah dipilih user di panel Extras
