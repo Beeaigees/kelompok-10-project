@@ -7,15 +7,8 @@ function formatRupiah(value) {
 }
 
 export default function Ticket({ ticketNumber = "108", tableInfo = "" }) {
-  const {
-    items,
-    updateQty,
-    removeItem,
-    itemLineTotal,
-    subtotal,
-    tax,
-    total,
-  } = useCart();
+  const { items, updateQty, removeItem, itemLineTotal, subtotal, tax, total } =
+    useCart();
 
   return (
     <aside className="flex h-full flex-col rounded-xl bg-card text-card-foreground">
@@ -23,14 +16,18 @@ export default function Ticket({ ticketNumber = "108", tableInfo = "" }) {
       <div className="flex items-center justify-between border-b border-border p-4">
         <div>
           <p className="text-lg font-semibold">Ticket #{ticketNumber}</p>
-          {tableInfo && <p className="text-xs text-muted-foreground">{tableInfo}</p>}
+          {tableInfo && (
+            <p className="text-xs text-muted-foreground">{tableInfo}</p>
+          )}
         </div>
       </div>
 
       {/* List item */}
       <div className="flex-1 space-y-3 overflow-y-auto p-4 min-h-0">
         {items.length === 0 && (
-          <p className="text-sm text-muted-foreground">Belum ada item di ticket.</p>
+          <p className="text-sm text-muted-foreground">
+            Belum ada item di ticket.
+          </p>
         )}
 
         {items.map((item) => (
@@ -44,7 +41,9 @@ export default function Ticket({ ticketNumber = "108", tableInfo = "" }) {
                   </p>
                 )}
                 {item.note && (
-                  <p className="text-xs italic text-muted-foreground">"{item.note}"</p>
+                  <p className="text-xs italic text-muted-foreground">
+                    " {item.note} "
+                  </p>
                 )}
               </div>
               <p className="text-sm font-medium">
