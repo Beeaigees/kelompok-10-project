@@ -1,20 +1,18 @@
 "use client";
 
-import Image from "next/image";
+import React from 'react';
+import Image from 'next/image';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useSelection } from "./SelectionContext";
 import { useCart } from "./CartContext";
 
-
-
-export function ProductCard({ itemMinuman }) {
-  const { activeProduct, selectProduct, stagedExtras, resetSelection } =
-    useSelection();
+export function ProductCard({ itemMinuman = [] }) {
+  const { activeProduct, selectProduct, stagedExtras, resetSelection } = useSelection();
   const { addItem } = useCart();
 
   const handleAdd = (e, drink) => {
-    e.stopPropagation(); // biar klik + gak ke-anggap klik card juga
+    e.stopPropagation();
     const isActive = activeProduct?.id === drink.id;
     addItem(drink, isActive ? stagedExtras : []);
     resetSelection();
@@ -36,7 +34,7 @@ export function ProductCard({ itemMinuman }) {
             {/* 1. Bagian Gambar (Paling Atas) */}
             <div className="w-full h-48 mb-4">
               <Image
-                src={drink.image}
+                src={drink.image_url}
                 alt={drink.name}
                 width={400}
                 height={300}
@@ -50,7 +48,7 @@ export function ProductCard({ itemMinuman }) {
                 {drink.name}
               </h3>
               <p className="text-sm text-gray-500 mt-1 line-clamp-1">
-                {drink.desc}
+                {drink.description}
               </p>
             </div>
 
@@ -58,7 +56,7 @@ export function ProductCard({ itemMinuman }) {
             <div className="flex items-center justify-between mt-4">
               <div className="flex flex-col">
                 <span className="text-xl font-semibold text-gray-900 leading-none">
-                  Rp {drink.price.toLocaleString("id-ID")}
+                  Rp {Number(drink.price).toLocaleString('id-ID')}
                 </span>
                 <span className="text-[10px] text-gray-400 font-medium tracking-wider uppercase mt-1">
                   REGULAR

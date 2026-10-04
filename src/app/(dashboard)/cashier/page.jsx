@@ -1,7 +1,7 @@
 import Cashier from "./_components/Cashier";
 
 async function getItems() {
-  const res = await fetch("http://127.0.0.1:8000/item/", {
+  const res = await fetch("http://127.0.0.1:8000/api/products", {
     cache: "no-store",
   });
 
@@ -10,12 +10,11 @@ async function getItems() {
   }
 
   const data = await res.json();
-  return data.items;
+  return data;
 }
 
 export default async function CashierPage() {
   const itemMinuman = await getItems();
-  console.log(itemMinuman);
 
   return (
     <>
