@@ -76,7 +76,8 @@ class ModifierOption(Base):
 class Order(Base):
     __tablename__ = "orders"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    ticket_number = Column(String, nullable=False)
+    ticket_number = Column(Integer, nullable=False)
+    customer_name = Column(String, nullable=True)
     status = Column(String, default="PENDING")
     subtotal = Column(Numeric(10, 2), default=0)
     tax = Column(Numeric(10, 2), default=0)
@@ -175,11 +176,12 @@ class OrderCreate(BaseModel):
     subtotal: float
     tax: float
     total: float
+    customer_name: Optional[str] = None
 
 
 class OrderOut(BaseModel):
     id: uuid.UUID
-    ticket_number: str
+    ticket_number: int
     status: str
     subtotal: float
     tax: float
@@ -368,7 +370,7 @@ VALID_STATUSES = {"PENDING", "PREPARING", "READY", "SERVED"}
 @app.post("/api/orders", response_model=OrderOut)
 def create_order(data: OrderCreate, db: Session = Depends(get_db)):
     order = Order(
-        ticket_number=data.ticket_number,
+        customer_name = data.customer_name,
         subtotal=data.subtotal,
         tax=data.tax,
         total=data.total,

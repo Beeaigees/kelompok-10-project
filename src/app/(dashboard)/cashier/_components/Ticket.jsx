@@ -1,33 +1,49 @@
 "use client";
 
+import { useState } from "react";
 import { useCart } from "./CartContext";
 
 function formatRupiah(value) {
   return `Rp ${Math.round(value).toLocaleString("id-ID")}`;
 }
 
-export default function Ticket({ ticketNumber = "108", tableInfo = "" }) {
-  const { items, updateQty, removeItem, itemLineTotal, subtotal, tax, total } =
-    useCart();
+export default function Ticket({ ticketNumber, customerName, onCustomerNameChange }) {
+  const {
+    items,
+    updateQty,
+    removeItem,
+    itemLineTotal,
+    subtotal,
+    tax,
+    total,
+  } = useCart();
 
   return (
     <aside className="flex h-full flex-col rounded-xl bg-card text-card-foreground">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-border p-4">
-        <div>
-          <p className="text-lg font-semibold">Ticket #{ticketNumber}</p>
-          {tableInfo && (
-            <p className="text-xs text-muted-foreground">{tableInfo}</p>
-          )}
+      <div className="border-b border-border p-4">
+        <div className="flex items-center justify-between">
+          <p className="text-lg font-semibold">
+            {ticketNumber ? `Ticket #${ticketNumber}` : "Ticket baru"}
+          </p>
+          <span className="rounded-full bg-orange-500/20 px-2 py-1 text-xs text-orange-600 dark:text-orange-400">
+            In Progress
+          </span>
         </div>
+
+        <input
+          type="text"
+          value={customerName}
+          onChange={(e) => onCustomerNameChange(e.target.value)}
+          placeholder="Nama pelanggan"
+          className="mt-2 w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-orange-500"
+        />
       </div>
 
       {/* List item */}
       <div className="flex-1 space-y-3 overflow-y-auto p-4 min-h-0">
         {items.length === 0 && (
-          <p className="text-sm text-muted-foreground">
-            Belum ada item di ticket.
-          </p>
+          <p className="text-sm text-muted-foreground">Belum ada item di ticket.</p>
         )}
 
         {items.map((item) => (
@@ -41,9 +57,7 @@ export default function Ticket({ ticketNumber = "108", tableInfo = "" }) {
                   </p>
                 )}
                 {item.note && (
-                  <p className="text-xs italic text-muted-foreground">
-                    " {item.note} "
-                  </p>
+                  <p className="text-xs italic text-muted-foreground">"{item.note}"</p>
                 )}
               </div>
               <p className="text-sm font-medium">
