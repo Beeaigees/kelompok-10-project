@@ -32,26 +32,9 @@ export const CORE_LIST = [
     title: "Kitchen KDS",
     url: "kitchen",
   },
-  {
-    icon: CirclePile,
-    title: "Admin & Analytics",
-    url: "admin",
-  },
+ 
 ];
 
-// konten Floor ops
-export const FLOOR_OPS = [
-  {
-    icon: CirclePile,
-    title: "Inventory POS",
-    url: "inventory",
-  },
-  {
-    icon: UserGroup,
-    title: "Staff Roster",
-    url: "staff",
-  },
-];
 
 export function AppSidebar() {
   const pathname = usePathname();
@@ -108,29 +91,7 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-brown-primary">
-            FLOOR OPS
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {FLOOR_OPS.map((item) => (
-                <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton
-                    render={<Link href={`/${item.url}`} />}
-                    className={cn("px-2 py-4", {
-                      "bg-[#d4af37]  hover:bg-[#bb9d3a]":
-                        pathname === `/${item.url}`,
-                    })}
-                  >
-                    <item.icon />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+    
       </SidebarContent>
       <SidebarFooter>
         <SidebarMenu></SidebarMenu>

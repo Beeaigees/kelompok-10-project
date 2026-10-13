@@ -23,6 +23,13 @@ from sqlalchemy.orm import sessionmaker, declarative_base, relationship, joinedl
 load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
+if DATABASE_URL and DATABASE_URL.startswith("postgresql+psycopg://"):
+    try:
+        import psycopg  # noqa: F401
+    except ModuleNotFoundError:
+        DATABASE_URL = DATABASE_URL.replace(
+            "postgresql+psycopg://", "postgresql+psycopg2://", 1
+        )
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "123")
 JWT_SECRET = os.getenv("JWT_SECRET", "ganti-ini-di-env")
