@@ -11,6 +11,13 @@ import {
   SidebarMenuItem,
 } from "../../components/ui/sidebar";
 
+import { Avatar, AvatarFallback } from "../../components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 import { Badge } from "../ui/badge";
 
 import {} from "../../constants/sidebar-constant";
@@ -18,7 +25,15 @@ import Link from "next/link";
 import Image from "next/image";
 import { cn } from "../../lib/utils";
 import { usePathname } from "next/navigation";
-import { ChefHat, CirclePile, Coins, Dot, UserGroup } from "lucide-react";
+import {
+  ChefHat,
+  CirclePile,
+  Coins,
+  Dot,
+  LogOut,
+  User2,
+  UserGroup,
+} from "lucide-react";
 
 // konten Core Terminal
 export const CORE_LIST = [
@@ -133,7 +148,40 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
-        <SidebarMenu></SidebarMenu>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <SidebarMenuButton size="lg" className="h-auto py-3">
+                    <Avatar>
+                      <AvatarFallback>A</AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col items-start text-left">
+                      <span className="text-sm font-medium">
+                        Muhammad Arya fattah
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        Admin
+                      </span>
+                    </div>
+                  </SidebarMenuButton>
+                }
+              />
+              <DropdownMenuContent
+                side="right"
+                align="end"
+                sideOffset={8}
+                className="w-auto min-w-30 p-1"
+              >
+                <DropdownMenuItem>
+                  <LogOut />{" "}
+                  <span className="text-red-500 font-bold">Logout</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
   );
