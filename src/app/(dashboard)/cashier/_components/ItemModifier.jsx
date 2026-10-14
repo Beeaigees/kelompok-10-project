@@ -18,8 +18,8 @@ const MODIFIER_GROUPS = [
     group: "MILK SUB",
     options: [
       { label: "Regular", priceAdd: 0 },
-      { label: "Oat", priceAdd: 0.8 },
-      { label: "Almond", priceAdd: 0.8 },
+      { label: "Oat", priceAdd: 5000 },
+      { label: "Almond", priceAdd: 5000 },
     ],
   },
   {
@@ -27,7 +27,7 @@ const MODIFIER_GROUPS = [
     options: [
       { label: "Single", priceAdd: 0 },
       { label: "Double", priceAdd: 0 },
-      { label: "Triple", priceAdd: 1.2 },
+      { label: "Triple", priceAdd: 8000 },
     ],
   },
   {
@@ -79,7 +79,7 @@ export default function ItemModifier() {
                   }
                 >
                   {opt.label}
-                  {opt.priceAdd > 0 && ` (+$${opt.priceAdd.toFixed(2)})`}
+                  {opt.priceAdd > 0 && ` (+Rp ${opt.priceAdd.toLocaleString("id-ID")})`}
                 </Button>
               ))}
             </div>
