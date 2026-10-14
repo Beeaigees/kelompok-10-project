@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useSelection } from "./SelectionContext";
 import { useCart } from "./CartContext";
 
 function formatRupiah(value) {
@@ -10,6 +10,7 @@ function formatRupiah(value) {
 export default function Ticket({ ticketNumber, customerName, onCustomerNameChange }) {
   const {
     items,
+    addItem,
     updateQty,
     removeItem,
     itemLineTotal,
@@ -17,6 +18,18 @@ export default function Ticket({ ticketNumber, customerName, onCustomerNameChang
     tax,
     total,
   } = useCart();
+
+  const {
+    activeProduct,
+    stagedExtras,
+    resetSelection
+  } = useSelection();
+
+  const handleAddItem = () => {
+    if (!activeProduct) return;
+    addItem(activeProduct, stagedExtras);
+    resetSelection();
+  }
 
   return (
     <aside className="flex h-full flex-col rounded-xl bg-card text-card-foreground">
@@ -88,6 +101,36 @@ export default function Ticket({ ticketNumber, customerName, onCustomerNameChang
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Item yang sedang dipilih + tombol Add Item */}
+      <div className="border-t border-border p-4">
+        {activeProduct ? (
+          <div className="mb-2 text-sm">
+            <p className="font-medium">{activeProduct.name}</p>
+            <p className="text-xs text-muted-foreground">
+              {stagedExtras.length > 0
+                ? stagedExtras.map((e) => e.label).join(" · ")
+                : "Tanpa extras"}
+            </p>
+          </div>
+        ) : (
+          <p className="mb-2 text-sm text-muted-foreground">
+            Pilih minuman dulu dari daftar menu.
+          </p>
+        )}
+
+        <button
+          onClick={handleAddItem}
+          disabled={!activeProduct}
+          className={`w-full rounded-lg border py-2 font-semibold transition ${
+            activeProduct
+              ? "border-[#b45309] text-[#b45309] hover:bg-[#b45309]/10"
+              : "cursor-not-allowed border-border text-muted-foreground"
+          }`}
+        >
+          Add Item
+        </button>
       </div>
 
       {/* Summary */}

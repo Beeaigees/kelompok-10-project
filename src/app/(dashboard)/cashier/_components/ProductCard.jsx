@@ -3,20 +3,13 @@
 import React from 'react';
 import Image from 'next/image';
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+
 import { useSelection } from "./SelectionContext";
-import { useCart } from "./CartContext";
+
 
 export function ProductCard({ itemMinuman = [] }) {
   const { activeProduct, selectProduct, stagedExtras, resetSelection } = useSelection();
-  const { addItem } = useCart();
 
-  const handleAdd = (e, drink) => {
-    e.stopPropagation();
-    const isActive = activeProduct?.id === drink.id;
-    addItem(drink, isActive ? stagedExtras : []);
-    resetSelection();
-  };
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4">
@@ -62,13 +55,6 @@ export function ProductCard({ itemMinuman = [] }) {
                   REGULAR
                 </span>
               </div>
-
-              <Button
-                onClick={(e) => handleAdd(e, drink)}
-                className="h-12 w-12 rounded-xl bg-[#b45309] hover:bg-[#92400e] text-white flex items-center justify-center p-0 shadow-sm"
-              >
-                <span className="text-3xl font-light mb-1">+</span>
-              </Button>
             </div>
           </Card>
         );
