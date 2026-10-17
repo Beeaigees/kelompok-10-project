@@ -1,6 +1,7 @@
 
 import os
 import uuid
+import bcrypt
 from datetime import datetime, timedelta
 from typing import Optional, List
 
@@ -18,8 +19,9 @@ from sqlalchemy.orm import sessionmaker, declarative_base, relationship, joinedl
 import enum
 
 from schemas import (
-    TokenResponse, ProductCreate, ProductOut , ModifierOptionCreate, ModifierOptionOut , ModifierGroupCreate, ModifierGroupOut, OrderCreate, OrderOut
+    UserCreate, ProductCreate, ProductOut , ModifierOptionCreate, ModifierOptionOut , ModifierGroupCreate, ModifierGroupOut, OrderCreate, OrderOut
 )
+
 
 # =========================================================
 # 1. KONFIGURASI & KONEKSI DATABASE
@@ -57,6 +59,23 @@ def get_db():
 # =========================================================
 # 2. MODELS (mapping ke tabel yang sudah ada di Supabase)
 # =========================================================
+class UserRole(str, enum.Enum):
+    admin = "admin"
+    cashier = "cashier"
+    kitchen = "kitchen"
+
+class Profile(Base):
+    __tablename__ = "profiles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True, nullable=False)
+    password = Column(String, nullable=False) # Akan menyimpan password yang sudah di-hash
+    role = Column(SQLEnum(UserRole), default=UserRole.cashier)
+
+# Membuat tabel di Supabase secara otomatis jika belum ada
+Base.metadata.create_all(bind=engine)
+
+
 
 class Product(Base):
     __tablename__ = "products"
@@ -129,14 +148,24 @@ class OrderItemModifier(Base):
 # =========================================================
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return bcrypt.checkpw(
+        plain_password.encode('utf-8'), 
+        hashed_password.encode('utf-8')
+    )
 
-def create_access_token(username: str) -> str:
+def get_password_hash(password):
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
+    return hashed.decode('utf-8')
+
+def create_access_token(username: str, role: str) -> str:
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    payload = {"sub": username, "exp": expire}
+    # Memasukkan username dan role ke dalam token
+    payload = {"sub": username, "role": role, "exp": expire}
     return jwt.encode(payload, JWT_SECRET, algorithm=ALGORITHM)
 
-
-def get_current_user(token: str = Depends(oauth2_scheme)) -> str:
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Token tidak valid atau kedaluwarsa",
@@ -146,10 +175,15 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> str:
         username = payload.get("sub")
         if username is None:
             raise credentials_exception
-        return username
-    except JWTError:
+    except jwt.PyJWTError:
         raise credentials_exception
-
+        
+    # Cek apakah user benar-benar ada di database SQLAlchemy
+    user = db.query(Profile).filter(Profile.username == username).first()
+    if user is None:
+        raise credentials_exception
+        
+    return user
 
 # =========================================================
 # 5. APP & MIDDLEWARE
@@ -173,21 +207,22 @@ def root():
 # =========================================================
 # 6. AUTH ENDPOINTS
 # =========================================================
-@app.post("/api/auth/login", response_model=TokenResponse)
-def login(form_data: OAuth2PasswordRequestForm = Depends()):
-    if form_data.username != ADMIN_USERNAME or form_data.password != ADMIN_PASSWORD:
+@app.post("/api/auth/login")
+def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    # 1. Cari user di database berdasarkan username
+    user = db.query(Profile).filter(Profile.username == form_data.username).first()
+    
+    # 2. Verifikasi ketersediaan user dan kecocokan password
+    if not user or not verify_password(form_data.password, user.password):
         raise HTTPException(status_code=401, detail="Username atau password salah")
-    token = create_access_token(form_data.username)
+    
+    # 3. Buat token jika sukses
+    token = create_access_token(user.username, user.role.value)
     return {"access_token": token, "token_type": "bearer"}
-
 
 @app.post("/api/auth/logout")
 def logout():
-    # JWT bersifat stateless, jadi "logout" sebenarnya cukup dilakukan
-    # di sisi frontend (hapus token dari localStorage/cookie).
-    # Endpoint ini disediakan agar frontend punya sesuatu untuk dipanggil.
-    return {"message": "Logout berhasil"}
-
+    return {"message": "Logout berhasil. Hapus token di frontend."}
 
 # =========================================================
 # 7. PRODUCTS ENDPOINTS
@@ -285,6 +320,42 @@ def delete_modifier_option(option_id: uuid.UUID, db: Session = Depends(get_db), 
     db.delete(option)
     db.commit()
     return {"message": "Opsi modifier berhasil dihapus"}
+
+
+# =========================================================
+# 6. USER ENDPOINT PROTECTED
+# =========================================================
+
+@app.post("/api/setup-user")
+def setup_user(user: UserCreate, db: Session = Depends(get_db)):
+    # Cek apakah username sudah ada
+    existing_user = db.query(Profile).filter(Profile.username == user.username).first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Username sudah digunakan")
+        
+    new_user = Profile(
+        username=user.username,
+        password=get_password_hash(user.password), # HARUS DI-HASH
+        role=user.role
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    
+    return {"message": f"User {new_user.username} dengan role {new_user.role} berhasil dibuat"}
+
+
+
+@app.get("/api/me")
+def get_my_profile(current_user: Profile = Depends(get_current_user)):
+    # current_user sekarang berisi object Profile dari database
+    return {
+        "id": current_user.id,
+        "username": current_user.username,
+        "role": current_user.role.value
+    }
+
+
 
 
 # =========================================================
