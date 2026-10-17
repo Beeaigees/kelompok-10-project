@@ -5,6 +5,15 @@ from datetime import datetime
 import uuid
 
 # =========================================================
+#  USER SCHEMAS 
+# =========================================================
+class UserCreate(BaseModel):
+    username: str
+    password: str
+    role: str
+
+
+# =========================================================
 # 3. SCHEMAS (bentuk data request & response)
 # =========================================================
 class ProductCreate(BaseModel):
