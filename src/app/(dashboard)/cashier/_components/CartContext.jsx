@@ -36,7 +36,7 @@ export function CartProvider({ children }) {
           cartItemId: crypto.randomUUID(),
           productId: product.id,
           name: product.name,
-          basePrice: product.price,
+          basePrice: Number(product.price),
           qty: 1,
           extras: selectedExtras,
           note,
