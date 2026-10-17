@@ -9,13 +9,17 @@ from fastapi import FastAPI, Depends, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import jwt, JWTError
-from pydantic import BaseModel
+
 from sqlalchemy import (
-    Column, String, Numeric, Integer, Boolean, DateTime, ForeignKey, func, create_engine
+    Column, String, Numeric, Integer, Boolean, DateTime, ForeignKey, func, create_engine, Enum as SQLEnum
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import sessionmaker, declarative_base, relationship, joinedload, Session
+import enum
 
+from schemas import (
+    TokenResponse, ProductCreate, ProductOut , ModifierOptionCreate, ModifierOptionOut , ModifierGroupCreate, ModifierGroupOut, OrderCreate, OrderOut
+)
 
 # =========================================================
 # 1. KONFIGURASI & KONEKSI DATABASE
@@ -53,6 +57,7 @@ def get_db():
 # =========================================================
 # 2. MODELS (mapping ke tabel yang sudah ada di Supabase)
 # =========================================================
+
 class Product(Base):
     __tablename__ = "products"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -117,92 +122,6 @@ class OrderItemModifier(Base):
     modifier_option = relationship("ModifierOption")
 
 
-# =========================================================
-# 3. SCHEMAS (bentuk data request & response)
-# =========================================================
-class ProductCreate(BaseModel):
-    name: str
-    price: float
-    description: Optional[str] = None
-    image_url: Optional[str] = None
-
-
-class ProductOut(BaseModel):
-    id: uuid.UUID
-    name: str
-    price: float
-    description: Optional[str] = None
-    image_url: Optional[str] = None
-    is_available: bool
-
-    class Config:
-        from_attributes = True
-
-
-class ModifierOptionOut(BaseModel):
-    id: uuid.UUID
-    label: str
-    price_add: float
-
-    class Config:
-        from_attributes = True
-
-
-class ModifierGroupOut(BaseModel):
-    id: uuid.UUID
-    name: str
-    options: List[ModifierOptionOut] = []
-
-    class Config:
-        from_attributes = True
-
-
-class ModifierGroupCreate(BaseModel):
-    name: str
-
-
-class ModifierOptionCreate(BaseModel):
-    label: str
-    price_add: float = 0
-
-
-class OrderItemModifierIn(BaseModel):
-    modifier_option_id: uuid.UUID
-
-
-class OrderItemIn(BaseModel):
-    product_id: uuid.UUID
-    qty: int
-    note: Optional[str] = None
-    modifiers: List[OrderItemModifierIn] = []
-
-
-class OrderCreate(BaseModel):
-    ticket_number: str
-    items: List[OrderItemIn]
-    subtotal: float
-    tax: float
-    total: float
-    customer_name: Optional[str] = None
-
-
-class OrderOut(BaseModel):
-    id: uuid.UUID
-    ticket_number: int
-    status: str
-    subtotal: float
-    tax: float
-    total: float
-    started_at: Optional[datetime] = None
-    ready_at: Optional[datetime] = None
-
-    class Config:
-        from_attributes = True
-
-
-class TokenResponse(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
 
 
 # =========================================================
