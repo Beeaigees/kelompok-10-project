@@ -12,7 +12,32 @@ import { AppSidebar } from "../../components/common/app-sidebar";
 import DashboardTimeShift from "./_components/dashboard-time-shift";
 import DashboardDate from "./_components/dashboard-date";
 import DashboardRecall from "./_components/dashboard-recall";
+
+import { useAuth } from "../../components/common/auth-context";
+
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 export default function DashboardLayout({ children }) {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/login");
+    }
+  }, [user, loading, router]);
+
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        Memuat aplikasi...
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
   return (
     <SidebarProvider>
       <AppSidebar />

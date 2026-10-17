@@ -19,6 +19,7 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import { Badge } from "../ui/badge";
+import { Skeleton } from "../ui/skeleton";
 
 import {} from "../../constants/sidebar-constant";
 import Link from "next/link";
@@ -34,6 +35,7 @@ import {
   User2,
   UserGroup,
 } from "lucide-react";
+import { useAuth } from "./auth-context";
 
 // konten Core Terminal
 export const CORE_LIST = [
@@ -47,12 +49,12 @@ export const CORE_LIST = [
     title: "Kitchen KDS",
     url: "kitchen",
   },
- 
 ];
-
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const { user, loading, logout } = useAuth();
+
   return (
     <Sidebar>
       <SidebarHeader>
@@ -105,45 +107,59 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-
-    
       </SidebarContent>
-      <SidebarFooter>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <SidebarMenuButton size="lg" className="h-auto py-3">
-                    <Avatar>
-                      <AvatarFallback>A</AvatarFallback>
-                    </Avatar>
-                    <div className="flex flex-col items-start text-left">
-                      <span className="text-sm font-medium">
-                        Muhammad Arya fattah
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        Admin
-                      </span>
-                    </div>
-                  </SidebarMenuButton>
-                }
-              />
-              <DropdownMenuContent
-                side="right"
-                align="end"
-                sideOffset={8}
-                className="w-auto min-w-30 p-1"
-              >
-                <DropdownMenuItem>
-                  <LogOut />{" "}
-                  <span className="text-red-500 font-bold">Logout</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
+      {loading ? (
+        <SidebarFooter>
+          <div className="flex gap-2 py-4 px-2 items-center">
+            <Skeleton className="h-10 w-10 rounded-full bg-muted/50" />
+            <div className="flex flex-col gap-2">
+              <Skeleton className="h-4 w-24 bg-muted/50" />
+              <Skeleton className="h-3 w-16 bg-muted/50" />
+            </div>
+          </div>
+        </SidebarFooter>
+      ) : (
+        <SidebarFooter>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <SidebarMenuButton size="lg" className="h-auto py-3">
+                      <Avatar>
+                        <AvatarFallback>
+                          {user?.username
+                            ? user.username.charAt(0).toUpperCase()
+                            : "U"}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-col items-start text-left">
+                        <span className="text-sm font-medium capitalize">
+                          {user?.username || "User"}
+                        </span>
+                        <span className="text-xs text-muted-foreground capitalize">
+                          {user?.role || "cashier"}
+                        </span>
+                      </div>
+                    </SidebarMenuButton>
+                  }
+                />
+                <DropdownMenuContent
+                  side="right"
+                  align="end"
+                  sideOffset={8}
+                  className="w-auto min-w-30 p-1"
+                >
+                  <DropdownMenuItem onClick={logout} className="cursor-pointer">
+                    <LogOut className="text-red-500 mr-2 h-4 w-4" />
+                    <span className="text-red-500 font-bold">Logout</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
+      )}
     </Sidebar>
   );
 }
