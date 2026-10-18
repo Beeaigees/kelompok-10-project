@@ -229,7 +229,7 @@ def logout():
 # =========================================================
 @app.get("/api/products", response_model=List[ProductOut])
 def list_products(db: Session = Depends(get_db)):
-    return db.query(Product).all()
+    return db.query(Product).order_by(Product.created_at.asc(), Product.id).all()
 
 
 @app.get("/api/products/{product_id}", response_model=ProductOut)
