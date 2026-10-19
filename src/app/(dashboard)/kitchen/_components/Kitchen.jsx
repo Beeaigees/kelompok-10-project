@@ -1,74 +1,83 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+
+const API = "http://localhost:8000/api";
 
 export default function Kitchen() {
   const [orders, setOrders] = useState([]);
 
-  useEffect(() => {
-    fetch("http://localhost:8000/api/orders?status=PENDING,PREPARING")
-      .then((res) => res.json())
-      .then((data) => setOrders(data));
+  const loadOrders = useCallback(async () => {
+    const res = await fetch(`${API}/orders?status=PENDING,PREPARING`);
+    if (res.ok) setOrders(await res.json());
+  }, []);
 
+  useEffect(() => {
+    loadOrders();
+
+    // Realtime hanya jadi "bel": ada perubahan di orders, ambil ulang daftarnya
     const channel = supabase
-      .channel("orders-channel")
+      .channel("kitchen-orders")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "orders" },
-        (payload) => {
-          if (payload.eventType === "INSERT") {
-            setOrders((prev) => [...prev, payload.new]);
-          }
-          if (payload.eventType === "UPDATE") {
-            setOrders((prev) =>
-              prev.map((o) => (o.id === payload.new.id ? payload.new : o))
-            );
-          }
-        }
+        () => loadOrders()
       )
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
+    return () => supabase.removeChannel(channel);
+  }, [loadOrders]);
 
-  // --- Fungsi aksi, taruh di sini, di dalam komponen ---
   async function startPreparing(orderId) {
-    await fetch(`http://localhost:8000/api/orders/${orderId}/start?estimated_duration_sec=180`, {
+    await fetch(`${API}/orders/${orderId}/start?estimated_duration_sec=180`, {
       method: "PATCH",
     });
-    // Gak perlu setOrders manual di sini — Supabase Realtime yang
-    // bakal otomatis update state lewat subscription di atas.
   }
 
   async function markReady(orderId) {
-    await fetch(`http://localhost:8000/api/orders/${orderId}/ready`, {
-      method: "PATCH",
-    });
+    await fetch(`${API}/orders/${orderId}/ready`, { method: "PATCH" });
   }
 
-  useEffect(() => {
-  fetch("http://localhost:8000/api/orders?status=PENDING,PREPARING")
-    .then((res) => res.json())
-    .then((data) => {
-      console.log("Data dari FastAPI:", data); // tambahin ini
-      setOrders(data);
-    });
-  // ...
-  }, []);
-
   return (
-    <div className="p-4 space-y-3">
+    <div className="space-y-3 p-4">
+      {orders.length === 0 && (
+        <p className="text-sm text-muted-foreground">Belum ada pesanan masuk.</p>
+      )}
+
       {orders.map((order) => (
         <div key={order.id} className="rounded-lg border border-border p-3">
           <div className="flex items-center justify-between">
-            <span className="font-medium">Ticket #{order.ticket_number}</span>
+            <div>
+              <span className="font-medium">Ticket #{order.ticket_number}</span>
+              {order.customer_name && (
+                <span className="ml-2 text-sm text-muted-foreground">
+                  {order.customer_name}
+                </span>
+              )}
+            </div>
             <span className="text-xs text-muted-foreground">{order.status}</span>
           </div>
 
-          <div className="mt-2 flex gap-2">
+          <ul className="mt-3 space-y-2">
+            {order.items.map((item) => (
+              <li key={item.id} className="text-sm">
+                <span className="font-medium">
+                  {item.qty}× {item.product.name}
+                </span>
+                {item.modifiers.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {item.modifiers.map((m) => m.modifier_option.label).join(" · ")}
+                  </p>
+                )}
+                {item.note && (
+                  <p className="text-xs italic text-muted-foreground">"{item.note}"</p>
+                )}
+              </li>
+            ))}
+          </ul>
+
+          <div className="mt-3 flex gap-2">
             {order.status === "PENDING" && (
               <button
                 onClick={() => startPreparing(order.id)}
