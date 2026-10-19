@@ -5,42 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../../../../components
 import { SlidersHorizontal } from "lucide-react";
 import { useSelection } from "./SelectionContext";
 
-const MODIFIER_GROUPS = [
-  {
-    group: "DRINK SIZE",
-    options: [
-      { label: "Small", priceAdd: 0 },
-      { label: "Medium", priceAdd: 0 },
-      { label: "Large", priceAdd: 0 },
-    ],
-  },
-  {
-    group: "MILK SUB",
-    options: [
-      { label: "Regular", priceAdd: 0 },
-      { label: "Oat", priceAdd: 5000 },
-      { label: "Almond", priceAdd: 5000 },
-    ],
-  },
-  {
-    group: "SHOT TUNING",
-    options: [
-      { label: "Single", priceAdd: 0 },
-      { label: "Double", priceAdd: 0 },
-      { label: "Triple", priceAdd: 8000 },
-    ],
-  },
-  {
-    group: "EXTRA ICE",
-    options: [
-      { label: "No Ice", priceAdd: 0 },
-      { label: "With Ice", priceAdd: 0 },
-      { label: "Less Ice", priceAdd: 0 },
-    ],
-  },
-];
-
-export default function ItemModifier() {
+export default function ItemModifier({ modifierGroups = [] }) {
   const { activeProduct, stagedExtras, toggleExtra } = useSelection();
 
   const isSelected = (group, label) =>
@@ -58,30 +23,40 @@ export default function ItemModifier() {
       </CardHeader>
 
       <div className="flex items-start gap-6 px-6 pb-4">
-        {MODIFIER_GROUPS.map((groupDef) => (
-          <CardContent key={groupDef.group} className="p-0">
+        {modifierGroups.length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            Belum ada data modifier.
+          </p>
+        )}
+
+        {modifierGroups.map((group) => (
+          <CardContent key={group.id} className="p-0">
             <p className="mb-2 text-xs font-medium text-muted-foreground">
-              {groupDef.group}
+              {group.name}
             </p>
             <div className="flex gap-2">
-              {groupDef.options.map((opt) => (
-                <Button
-                  key={opt.label}
-                  size="sm"
-                  disabled={!activeProduct}
-                  variant={isSelected(groupDef.group, opt.label) ? "default" : "outline"}
-                  onClick={() =>
-                    toggleExtra({
-                      group: groupDef.group,
-                      label: opt.label,
-                      priceAdd: opt.priceAdd,
-                    })
-                  }
-                >
-                  {opt.label}
-                  {opt.priceAdd > 0 && ` (+Rp ${opt.priceAdd.toLocaleString("id-ID")})`}
-                </Button>
-              ))}
+              {group.options.map((opt) => {
+                const priceAdd = Number(opt.price_add);
+                return (
+                  <Button
+                    key={opt.id}
+                    size="sm"
+                    disabled={!activeProduct}
+                    variant={isSelected(group.name, opt.label) ? "default" : "outline"}
+                    onClick={() =>
+                      toggleExtra({
+                        group: group.name,
+                        label: opt.label,
+                        priceAdd,
+                        optionId: opt.id, // UUID yang dikirim ke backend
+                      })
+                    }
+                  >
+                    {opt.label}
+                    {priceAdd > 0 && ` (+Rp ${priceAdd.toLocaleString("id-ID")})`}
+                  </Button>
+                );
+              })}
             </div>
           </CardContent>
         ))}
