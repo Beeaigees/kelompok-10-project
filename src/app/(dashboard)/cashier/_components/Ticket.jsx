@@ -78,7 +78,7 @@ export default function Ticket({ ticketNumber, customerName, onCustomerNameChang
           <p className="text-lg font-semibold">
             {ticketNumber ? `Ticket #${ticketNumber}` : "Ticket baru"}
           </p>
-          <span className="rounded-full bg-orange-500/20 px-2 py-1 text-xs text-orange-600 dark:text-orange-400">
+          <span className="rounded-full bg-primary px-2 py-1 text-xs text-primary-foreground">
             In Progress
           </span>
         </div>
@@ -88,7 +88,7 @@ export default function Ticket({ ticketNumber, customerName, onCustomerNameChang
           value={customerName}
           onChange={(e) => onCustomerNameChange(e.target.value)}
           placeholder="Nama pelanggan"
-          className="mt-2 w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-orange-500"
+          className="mt-2 w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
         />
       </div>
 
@@ -133,7 +133,7 @@ export default function Ticket({ ticketNumber, customerName, onCustomerNameChang
               </button>
               <button
                 onClick={() => removeItem(item.cartItemId)}
-                className="ml-auto text-xs text-red-500 hover:underline"
+                className="ml-auto text-xs text-destructive hover:underline"
               >
                 Hapus
               </button>
@@ -164,7 +164,7 @@ export default function Ticket({ ticketNumber, customerName, onCustomerNameChang
           disabled={!activeProduct}
           className={`w-full rounded-lg border py-2 font-semibold transition ${
             activeProduct
-              ? "border-[#b45309] text-[#b45309] hover:bg-[#b45309]/10"
+              ? "border-primary bg-primary text-primary-foreground hover:bg-primary-hover"
               : "cursor-not-allowed border-border text-muted-foreground"
           }`}
         >
@@ -198,7 +198,7 @@ export default function Ticket({ ticketNumber, customerName, onCustomerNameChang
         <button
           onClick={handleCharge}
           disabled={items.length === 0 || submitting}
-          className="w-full rounded-lg bg-[#b45309] py-3 font-semibold text-white hover:bg-[#92400e] disabled:cursor-not-allowed disabled:opacity-50"
+          className="w-full rounded-lg bg-primary py-3 font-semibold text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
         >
           {submitting ? "Mengirim..." : `Charge Terminal ${formatRupiah(total)}`}
         </button>

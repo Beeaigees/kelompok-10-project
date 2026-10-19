@@ -71,11 +71,11 @@ export function AppSidebar() {
                 />
                 <div className="flex flex-col">
                   <h1 className="md:text-md font-semibold">BrewOps</h1>
-                  <p className="text-xs  text-brown-primary">System Core</p>
+                  <p className="text-xs  text-primary">System Core</p>
                 </div>
               </div>
 
-              <Badge className="bg-green-300 text-green-800 dark:bg-green-950 dark:text-green-300">
+              <Badge className="bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300">
                 <Dot size={64} />
                 <p className="font-semibold">Live</p>
               </Badge>
@@ -85,7 +85,7 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="text-brown-primary uppercase">
+          <SidebarGroupLabel className="text-primary uppercase">
             Core terminals
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -95,7 +95,7 @@ export function AppSidebar() {
                   <SidebarMenuButton
                     render={<Link href={`/${item.url}`} />}
                     className={cn("px-2 py-4 ", {
-                      "bg-brown-primary text-white  hover:bg-brown-primary-hover hover:text-white":
+                      "bg-primary text-primary-foreground  hover:bg-primary-hover hover:text-primary-foreground":
                         pathname === `/${item.url}`,
                     })}
                   >
@@ -151,8 +151,8 @@ export function AppSidebar() {
                   className="w-auto min-w-30 p-1"
                 >
                   <DropdownMenuItem onClick={logout} className="cursor-pointer">
-                    <LogOut className="text-red-500 mr-2 h-4 w-4" />
-                    <span className="text-red-500 font-bold">Logout</span>
+                    <LogOut className="text-destructive mr-2 h-4 w-4" />
+                    <span className="text-destructive font-bold">Logout</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

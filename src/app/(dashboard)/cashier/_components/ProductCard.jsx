@@ -31,8 +31,8 @@ export function ProductCard({ itemMinuman = [] }) {
             <Card
               key={drink.id}
               onClick={() => selectProduct(drink)}
-              className={`overflow-hidden border-none shadow-sm hover:shadow-md transition-all bg-white rounded-2xl flex flex-col p-4 cursor-pointer ${
-                isActive ? "ring-2 ring-[#b45309]" : ""
+              className={`overflow-hidden border-none shadow-sm hover:shadow-md transition-all bg-card text-card-foreground rounded-2xl flex flex-col p-4 cursor-pointer ${
+                isActive ? "ring-2 ring-primary" : ""
               }`}
             >
               <div className="w-full h-48 mb-4">
@@ -46,20 +46,20 @@ export function ProductCard({ itemMinuman = [] }) {
               </div>
 
               <div className="flex-1">
-                <h3 className="font-bold text-gray-900 text-lg leading-tight capitalize">
+                <h3 className="font-bold text-foreground text-lg leading-tight capitalize">
                   {drink.name}
                 </h3>
-                <p className="text-sm text-gray-500 mt-1 line-clamp-1">
+                <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
                   {drink.description}
                 </p>
               </div>
 
               <div className="flex items-center justify-between mt-4">
                 <div className="flex flex-col">
-                  <span className="text-xl font-semibold text-gray-900 leading-none">
+                  <span className="text-xl font-semibold text-foreground leading-none">
                     Rp {Number(drink.price).toLocaleString("id-ID")}
                   </span>
-                  <span className="text-[10px] text-gray-400 font-medium tracking-wider uppercase mt-1">
+                  <span className="text-[10px] text-muted-foreground font-medium tracking-wider uppercase mt-1">
                     REGULAR
                   </span>
                 </div>

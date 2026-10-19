@@ -46,7 +46,7 @@ export default function Kitchen() {
       )}
 
       {orders.map((order) => (
-        <div key={order.id} className="rounded-lg border border-border p-3">
+        <div key={order.id} className="rounded-lg border border-border bg-card text-card-foreground p-3">
           <div className="flex items-center justify-between">
             <div>
               <span className="font-medium">Ticket #{order.ticket_number}</span>
@@ -81,7 +81,7 @@ export default function Kitchen() {
             {order.status === "PENDING" && (
               <button
                 onClick={() => startPreparing(order.id)}
-                className="rounded bg-orange-600 px-3 py-1 text-sm text-white"
+                className="rounded bg-primary px-3 py-1 text-sm text-primary-foreground"
               >
                 Mulai Masak
               </button>
@@ -89,7 +89,7 @@ export default function Kitchen() {
             {order.status === "PREPARING" && (
               <button
                 onClick={() => markReady(order.id)}
-                className="rounded bg-green-600 px-3 py-1 text-sm text-white"
+                className="rounded bg-green-700 px-3 py-1 text-sm text-white"
               >
                 Tandai Selesai
               </button>
