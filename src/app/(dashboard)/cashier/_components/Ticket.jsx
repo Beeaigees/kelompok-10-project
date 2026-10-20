@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSelection } from "./SelectionContext";
 import { useCart } from "./CartContext";
 
 function formatRupiah(value) {
@@ -10,13 +11,64 @@ function formatRupiah(value) {
 export default function Ticket({ ticketNumber, customerName, onCustomerNameChange }) {
   const {
     items,
+    addItem,
     updateQty,
     removeItem,
+    clearCart, // <-- DITAMBAHKAN
     itemLineTotal,
     subtotal,
     tax,
     total,
   } = useCart();
+
+  const { activeProduct, stagedExtras, resetSelection } = useSelection();
+
+  const [submitting, setSubmitting] = useState(false);
+  const [lastTicket, setLastTicket] = useState(null);
+
+  const handleAddItem = () => {
+    if (!activeProduct) return;
+    addItem(activeProduct, stagedExtras);
+    resetSelection();
+  };
+
+  const handleCharge = async () => {
+    if (items.length === 0 || submitting) return;
+    setSubmitting(true);
+
+    try {
+      const res = await fetch("http://localhost:8000/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customer_name: customerName.trim() || null,
+          subtotal: Math.round(subtotal),
+          tax: Math.round(tax),
+          total: Math.round(total),
+          items: items.map((it) => ({
+            product_id: it.productId,
+            qty: it.qty,
+            note: it.note || null,
+            modifiers: it.extras.map((e) => ({
+              modifier_option_id: e.optionId,
+            })),
+          })),
+        }),
+      });
+
+      if (!res.ok) throw new Error(await res.text());
+
+      const order = await res.json();
+      setLastTicket(order.ticket_number);
+      clearCart();
+      onCustomerNameChange("");
+    } catch (err) {
+      console.error(err);
+      alert("Gagal mengirim pesanan ke kitchen.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <aside className="flex h-full flex-col rounded-xl bg-card text-card-foreground">
@@ -26,7 +78,7 @@ export default function Ticket({ ticketNumber, customerName, onCustomerNameChang
           <p className="text-lg font-semibold">
             {ticketNumber ? `Ticket #${ticketNumber}` : "Ticket baru"}
           </p>
-          <span className="rounded-full bg-orange-500/20 px-2 py-1 text-xs text-orange-600 dark:text-orange-400">
+          <span className="rounded-full bg-primary px-2 py-1 text-xs text-primary-foreground">
             In Progress
           </span>
         </div>
@@ -36,7 +88,7 @@ export default function Ticket({ ticketNumber, customerName, onCustomerNameChang
           value={customerName}
           onChange={(e) => onCustomerNameChange(e.target.value)}
           placeholder="Nama pelanggan"
-          className="mt-2 w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-orange-500"
+          className="mt-2 w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
         />
       </div>
 
@@ -81,13 +133,43 @@ export default function Ticket({ ticketNumber, customerName, onCustomerNameChang
               </button>
               <button
                 onClick={() => removeItem(item.cartItemId)}
-                className="ml-auto text-xs text-red-500 hover:underline"
+                className="ml-auto text-xs text-destructive hover:underline"
               >
                 Hapus
               </button>
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Item yang sedang dipilih + tombol Add Item */}
+      <div className="border-t border-border p-4">
+        {activeProduct ? (
+          <div className="mb-2 text-sm">
+            <p className="font-medium">{activeProduct.name}</p>
+            <p className="text-xs text-muted-foreground">
+              {stagedExtras.length > 0
+                ? stagedExtras.map((e) => e.label).join(" · ")
+                : "Tanpa extras"}
+            </p>
+          </div>
+        ) : (
+          <p className="mb-2 text-sm text-muted-foreground">
+            Pilih minuman dulu dari daftar menu.
+          </p>
+        )}
+
+        <button
+          onClick={handleAddItem}
+          disabled={!activeProduct}
+          className={`w-full rounded-lg border py-2 font-semibold transition ${
+            activeProduct
+              ? "border-primary bg-primary text-primary-foreground hover:bg-primary-hover"
+              : "cursor-not-allowed border-border text-muted-foreground"
+          }`}
+        >
+          Add Item
+        </button>
       </div>
 
       {/* Summary */}
@@ -106,9 +188,19 @@ export default function Ticket({ ticketNumber, customerName, onCustomerNameChang
         </div>
       </div>
 
+      {/* Tombol Charge */}
       <div className="p-4 pt-0">
-        <button className="w-full rounded-lg bg-[#b45309] py-3 font-semibold text-white hover:bg-[#92400e]">
-          Charge Terminal {formatRupiah(total)}
+        {lastTicket && (
+          <p className="mb-2 text-center text-sm text-green-600">
+            Ticket #{lastTicket} terkirim ke kitchen
+          </p>
+        )}
+        <button
+          onClick={handleCharge}
+          disabled={items.length === 0 || submitting}
+          className="w-full rounded-lg bg-primary py-3 font-semibold text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {submitting ? "Mengirim..." : `Charge Terminal ${formatRupiah(total)}`}
         </button>
       </div>
     </aside>

@@ -11,14 +11,31 @@ import {
   SidebarMenuItem,
 } from "../../components/ui/sidebar";
 
+import { Avatar, AvatarFallback } from "../../components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 import { Badge } from "../ui/badge";
+import { Skeleton } from "../ui/skeleton";
 
 import {} from "../../constants/sidebar-constant";
 import Link from "next/link";
 import Image from "next/image";
 import { cn } from "../../lib/utils";
 import { usePathname } from "next/navigation";
-import { ChefHat, CirclePile, Coins, Dot, UserGroup } from "lucide-react";
+import {
+  ChefHat,
+  CirclePile,
+  Coins,
+  Dot,
+  LogOut,
+  User2,
+  UserGroup,
+} from "lucide-react";
+import { useAuth } from "./auth-context";
 
 // konten Core Terminal
 export const CORE_LIST = [
@@ -32,29 +49,12 @@ export const CORE_LIST = [
     title: "Kitchen KDS",
     url: "kitchen",
   },
-  {
-    icon: CirclePile,
-    title: "Admin & Analytics",
-    url: "admin",
-  },
-];
-
-// konten Floor ops
-export const FLOOR_OPS = [
-  {
-    icon: CirclePile,
-    title: "Inventory POS",
-    url: "inventory",
-  },
-  {
-    icon: UserGroup,
-    title: "Staff Roster",
-    url: "staff",
-  },
 ];
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const { user, loading, logout } = useAuth();
+
   return (
     <Sidebar>
       <SidebarHeader>
@@ -71,11 +71,11 @@ export function AppSidebar() {
                 />
                 <div className="flex flex-col">
                   <h1 className="md:text-md font-semibold">BrewOps</h1>
-                  <p className="text-xs  text-brown-primary">System Core</p>
+                  <p className="text-xs  text-primary">System Core</p>
                 </div>
               </div>
 
-              <Badge className="bg-green-300 text-green-800 dark:bg-green-950 dark:text-green-300">
+              <Badge className="bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300">
                 <Dot size={64} />
                 <p className="font-semibold">Live</p>
               </Badge>
@@ -85,7 +85,7 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="text-brown-primary uppercase">
+          <SidebarGroupLabel className="text-primary uppercase">
             Core terminals
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -95,31 +95,7 @@ export function AppSidebar() {
                   <SidebarMenuButton
                     render={<Link href={`/${item.url}`} />}
                     className={cn("px-2 py-4 ", {
-                      "bg-brown-primary text-white  hover:bg-brown-primary-hover hover:text-white":
-                        pathname === `/${item.url}`,
-                    })}
-                  >
-                    <item.icon />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-brown-primary">
-            FLOOR OPS
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {FLOOR_OPS.map((item) => (
-                <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton
-                    render={<Link href={`/${item.url}`} />}
-                    className={cn("px-2 py-4", {
-                      "bg-[#d4af37]  hover:bg-[#bb9d3a]":
+                      "bg-primary text-primary-foreground  hover:bg-primary-hover hover:text-primary-foreground":
                         pathname === `/${item.url}`,
                     })}
                   >
@@ -132,9 +108,58 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter>
-        <SidebarMenu></SidebarMenu>
-      </SidebarFooter>
+      {loading ? (
+        <SidebarFooter>
+          <div className="flex gap-2 py-4 px-2 items-center">
+            <Skeleton className="h-10 w-10 rounded-full bg-muted/50" />
+            <div className="flex flex-col gap-2">
+              <Skeleton className="h-4 w-24 bg-muted/50" />
+              <Skeleton className="h-3 w-16 bg-muted/50" />
+            </div>
+          </div>
+        </SidebarFooter>
+      ) : (
+        <SidebarFooter>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <SidebarMenuButton size="lg" className="h-auto py-3">
+                      <Avatar>
+                        <AvatarFallback>
+                          {user?.username
+                            ? user.username.charAt(0).toUpperCase()
+                            : "U"}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-col items-start text-left">
+                        <span className="text-sm font-medium capitalize">
+                          {user?.username || "User"}
+                        </span>
+                        <span className="text-xs text-muted-foreground capitalize">
+                          {user?.role || "cashier"}
+                        </span>
+                      </div>
+                    </SidebarMenuButton>
+                  }
+                />
+                <DropdownMenuContent
+                  side="right"
+                  align="end"
+                  sideOffset={8}
+                  className="w-auto min-w-30 p-1"
+                >
+                  <DropdownMenuItem onClick={logout} className="cursor-pointer">
+                    <LogOut className="text-destructive mr-2 h-4 w-4" />
+                    <span className="text-destructive font-bold">Logout</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
+      )}
     </Sidebar>
   );
 }

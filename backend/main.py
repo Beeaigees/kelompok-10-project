@@ -1,6 +1,7 @@
-
 import os
 import uuid
+import bcrypt
+import enum
 from datetime import datetime, timedelta
 from typing import Optional, List
 
@@ -9,12 +10,20 @@ from fastapi import FastAPI, Depends, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import jwt, JWTError
-from pydantic import BaseModel
+
 from sqlalchemy import (
-    Column, String, Numeric, Integer, Boolean, DateTime, ForeignKey, func, create_engine
+    Column, String, Numeric, Integer, Boolean, DateTime, ForeignKey, func,
+    create_engine, FetchedValue, Enum as SQLEnum
 )
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import sessionmaker, declarative_base, relationship, joinedload, Session
+from sqlalchemy.orm import (
+    sessionmaker, declarative_base, relationship, joinedload, selectinload, Session
+)
+
+from schemas import (
+    UserCreate, ProductCreate, ProductOut, ModifierOptionCreate, ModifierOptionOut,
+    ModifierGroupCreate, ModifierGroupOut, OrderCreate, OrderOut
+)
 
 
 # =========================================================
@@ -23,6 +32,13 @@ from sqlalchemy.orm import sessionmaker, declarative_base, relationship, joinedl
 load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
+if DATABASE_URL and DATABASE_URL.startswith("postgresql+psycopg://"):
+    try:
+        import psycopg  # noqa: F401
+    except ModuleNotFoundError:
+        DATABASE_URL = DATABASE_URL.replace(
+            "postgresql+psycopg://", "postgresql+psycopg2://", 1
+        )
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "123")
 JWT_SECRET = os.getenv("JWT_SECRET", "ganti-ini-di-env")
@@ -44,8 +60,23 @@ def get_db():
 
 
 # =========================================================
-# 2. MODELS (mapping ke tabel yang sudah ada di Supabase)
+# 2. MODELS (mapping ke tabel di Supabase)
 # =========================================================
+class UserRole(str, enum.Enum):
+    admin = "admin"
+    cashier = "cashier"
+    kitchen = "kitchen"
+
+
+class Profile(Base):
+    __tablename__ = "profiles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True, nullable=False)
+    password = Column(String, nullable=False)  # password yang sudah di-hash
+    role = Column(SQLEnum(UserRole), default=UserRole.cashier)
+
+
 class Product(Base):
     __tablename__ = "products"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -76,7 +107,9 @@ class ModifierOption(Base):
 class Order(Base):
     __tablename__ = "orders"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    ticket_number = Column(Integer, nullable=False)
+    # ticket_number adalah identity column (GENERATED ALWAYS) di database,
+    # jadi SQLAlchemy tidak boleh mengirim nilainya. FetchedValue = "database yang isi".
+    ticket_number = Column(Integer, server_default=FetchedValue(), nullable=False)
     customer_name = Column(String, nullable=True)
     status = Column(String, default="PENDING")
     subtotal = Column(Numeric(10, 2), default=0)
@@ -110,107 +143,49 @@ class OrderItemModifier(Base):
     modifier_option = relationship("ModifierOption")
 
 
-# =========================================================
-# 3. SCHEMAS (bentuk data request & response)
-# =========================================================
-class ProductCreate(BaseModel):
-    name: str
-    price: float
-    description: Optional[str] = None
-    image_url: Optional[str] = None
-
-
-class ProductOut(BaseModel):
-    id: uuid.UUID
-    name: str
-    price: float
-    description: Optional[str] = None
-    image_url: Optional[str] = None
-    is_available: bool
-
-    class Config:
-        from_attributes = True
-
-
-class ModifierOptionOut(BaseModel):
-    id: uuid.UUID
-    label: str
-    price_add: float
-
-    class Config:
-        from_attributes = True
-
-
-class ModifierGroupOut(BaseModel):
-    id: uuid.UUID
-    name: str
-    options: List[ModifierOptionOut] = []
-
-    class Config:
-        from_attributes = True
-
-
-class ModifierGroupCreate(BaseModel):
-    name: str
-
-
-class ModifierOptionCreate(BaseModel):
-    label: str
-    price_add: float = 0
-
-
-class OrderItemModifierIn(BaseModel):
-    modifier_option_id: uuid.UUID
-
-
-class OrderItemIn(BaseModel):
-    product_id: uuid.UUID
-    qty: int
-    note: Optional[str] = None
-    modifiers: List[OrderItemModifierIn] = []
-
-
-class OrderCreate(BaseModel):
-    ticket_number: str
-    items: List[OrderItemIn]
-    subtotal: float
-    tax: float
-    total: float
-    customer_name: Optional[str] = None
-
-
-class OrderOut(BaseModel):
-    id: uuid.UUID
-    ticket_number: int
-    status: str
-    subtotal: float
-    tax: float
-    total: float
-    started_at: Optional[datetime] = None
-    ready_at: Optional[datetime] = None
-
-    class Config:
-        from_attributes = True
-
-
-class TokenResponse(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
+# Membuat tabel yang belum ada (tabel yang sudah ada tidak diubah)
+Base.metadata.create_all(bind=engine)
 
 
 # =========================================================
-# 4. AUTH — login pakai 1 akun hardcoded dari .env
+# 3. HELPER QUERY
+# =========================================================
+def order_query(db: Session):
+    """Query Order lengkap dengan items, product, dan modifiers."""
+    return db.query(Order).options(
+        selectinload(Order.items).selectinload(OrderItem.product),
+        selectinload(Order.items)
+        .selectinload(OrderItem.modifiers)
+        .selectinload(OrderItemModifier.modifier_option),
+    )
+
+
+# =========================================================
+# 4. AUTH
 # =========================================================
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 
 
-def create_access_token(username: str) -> str:
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return bcrypt.checkpw(
+        plain_password.encode("utf-8"),
+        hashed_password.encode("utf-8"),
+    )
+
+
+def get_password_hash(password):
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(password.encode("utf-8"), salt)
+    return hashed.decode("utf-8")
+
+
+def create_access_token(username: str, role: str) -> str:
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    payload = {"sub": username, "exp": expire}
+    payload = {"sub": username, "role": role, "exp": expire}
     return jwt.encode(payload, JWT_SECRET, algorithm=ALGORITHM)
 
 
-def get_current_user(token: str = Depends(oauth2_scheme)) -> str:
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Token tidak valid atau kedaluwarsa",
@@ -220,9 +195,14 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> str:
         username = payload.get("sub")
         if username is None:
             raise credentials_exception
-        return username
     except JWTError:
         raise credentials_exception
+
+    user = db.query(Profile).filter(Profile.username == username).first()
+    if user is None:
+        raise credentials_exception
+
+    return user
 
 
 # =========================================================
@@ -232,7 +212,7 @@ app = FastAPI(title="BrewOps POS API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # ganti sesuai domain Next.js kamu nanti
+    allow_origins=["http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -247,20 +227,20 @@ def root():
 # =========================================================
 # 6. AUTH ENDPOINTS
 # =========================================================
-@app.post("/api/auth/login", response_model=TokenResponse)
-def login(form_data: OAuth2PasswordRequestForm = Depends()):
-    if form_data.username != ADMIN_USERNAME or form_data.password != ADMIN_PASSWORD:
+@app.post("/api/auth/login")
+def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    user = db.query(Profile).filter(Profile.username == form_data.username).first()
+
+    if not user or not verify_password(form_data.password, user.password):
         raise HTTPException(status_code=401, detail="Username atau password salah")
-    token = create_access_token(form_data.username)
+
+    token = create_access_token(user.username, user.role.value)
     return {"access_token": token, "token_type": "bearer"}
 
 
 @app.post("/api/auth/logout")
 def logout():
-    # JWT bersifat stateless, jadi "logout" sebenarnya cukup dilakukan
-    # di sisi frontend (hapus token dari localStorage/cookie).
-    # Endpoint ini disediakan agar frontend punya sesuatu untuk dipanggil.
-    return {"message": "Logout berhasil"}
+    return {"message": "Logout berhasil. Hapus token di frontend."}
 
 
 # =========================================================
@@ -268,7 +248,7 @@ def logout():
 # =========================================================
 @app.get("/api/products", response_model=List[ProductOut])
 def list_products(db: Session = Depends(get_db)):
-    return db.query(Product).all()
+    return db.query(Product).order_by(Product.created_at.asc(), Product.id).all()
 
 
 @app.get("/api/products/{product_id}", response_model=ProductOut)
@@ -362,22 +342,53 @@ def delete_modifier_option(option_id: uuid.UUID, db: Session = Depends(get_db), 
 
 
 # =========================================================
-# 9. ORDERS ENDPOINTS — Cashier & Kitchen
+# 9. USER ENDPOINTS
+# =========================================================
+@app.post("/api/setup-user")
+def setup_user(user: UserCreate, db: Session = Depends(get_db)):
+    existing_user = db.query(Profile).filter(Profile.username == user.username).first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Username sudah digunakan")
+
+    new_user = Profile(
+        username=user.username,
+        password=get_password_hash(user.password),
+        role=user.role,
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    return {"message": f"User {new_user.username} dengan role {new_user.role} berhasil dibuat"}
+
+
+@app.get("/api/me")
+def get_my_profile(current_user: Profile = Depends(get_current_user)):
+    return {
+        "id": current_user.id,
+        "username": current_user.username,
+        "role": current_user.role.value,
+    }
+
+
+# =========================================================
+# 10. ORDERS ENDPOINTS: Cashier & Kitchen
 # =========================================================
 VALID_STATUSES = {"PENDING", "PREPARING", "READY", "SERVED"}
 
 
 @app.post("/api/orders", response_model=OrderOut)
 def create_order(data: OrderCreate, db: Session = Depends(get_db)):
+    # ticket_number TIDAK diisi di sini, database yang menghasilkannya (identity column)
     order = Order(
-        customer_name = data.customer_name,
+        customer_name=data.customer_name,
         subtotal=data.subtotal,
         tax=data.tax,
         total=data.total,
         status="PENDING",
     )
     db.add(order)
-    db.flush()  # supaya order.id sudah terisi sebelum dipakai order_items
+    db.flush()  # supaya order.id sudah terisi
 
     for item_in in data.items:
         order_item = OrderItem(
@@ -396,8 +407,9 @@ def create_order(data: OrderCreate, db: Session = Depends(get_db)):
             ))
 
     db.commit()
-    db.refresh(order)
-    return order
+
+    # Ambil ulang lengkap dengan items/product/modifiers untuk response
+    return order_query(db).filter(Order.id == order.id).first()
 
 
 @app.get("/api/orders", response_model=List[OrderOut])
@@ -405,7 +417,7 @@ def list_orders(
     status_filter: Optional[str] = Query(None, alias="status", description="Contoh: PENDING,PREPARING"),
     db: Session = Depends(get_db),
 ):
-    query = db.query(Order)
+    query = order_query(db)
     if status_filter:
         status_list = [s.strip().upper() for s in status_filter.split(",")]
         invalid = [s for s in status_list if s not in VALID_STATUSES]
@@ -417,7 +429,7 @@ def list_orders(
 
 @app.get("/api/orders/{order_id}", response_model=OrderOut)
 def get_order(order_id: uuid.UUID, db: Session = Depends(get_db)):
-    order = db.query(Order).filter(Order.id == order_id).first()
+    order = order_query(db).filter(Order.id == order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Order tidak ditemukan")
     return order
@@ -442,8 +454,7 @@ def start_order(order_id: uuid.UUID, estimated_duration_sec: int, db: Session = 
     order.started_at = datetime.utcnow()
     order.estimated_duration_sec = estimated_duration_sec
     db.commit()
-    db.refresh(order)
-    return order
+    return order_query(db).filter(Order.id == order_id).first()
 
 
 @app.patch("/api/orders/{order_id}/ready", response_model=OrderOut)
@@ -454,8 +465,7 @@ def ready_order(order_id: uuid.UUID, db: Session = Depends(get_db)):
     order.status = "READY"
     order.ready_at = datetime.utcnow()
     db.commit()
-    db.refresh(order)
-    return order
+    return order_query(db).filter(Order.id == order_id).first()
 
 
 @app.patch("/api/orders/{order_id}/serve", response_model=OrderOut)
@@ -465,5 +475,4 @@ def serve_order(order_id: uuid.UUID, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Order tidak ditemukan")
     order.status = "SERVED"
     db.commit()
-    db.refresh(order)
-    return order
+    return order_query(db).filter(Order.id == order_id).first()
