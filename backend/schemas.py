@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional, List
 from datetime import datetime
 
@@ -94,7 +94,15 @@ class OrderCreate(BaseModel):
     subtotal: float
     tax: float
     total: float
-    customer_name: Optional[str] = None
+    customer_name: str
+
+    @field_validator("customer_name")
+    @classmethod
+    def customer_name_not_empty(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Nama pelanggan wajib diisi")
+        return v
 
 
 # =========================================================
