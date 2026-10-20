@@ -1,6 +1,6 @@
 "use client";
 
-import { ReadyOrdersProvider } from "../../components/common/ready-orders-context"; 
+import { ReadyOrdersProvider } from "../../components/common/ready-orders-context";
 import DashboardBreadcrumb from "./_components/dashboard-breadcrumb";
 import {
   SidebarProvider,
@@ -13,20 +13,28 @@ import { AppSidebar } from "../../components/common/app-sidebar";
 import DashboardTimeShift from "./_components/dashboard-time-shift";
 import DashboardDate from "./_components/dashboard-date";
 import DashboardRecall from "./_components/dashboard-recall";
-
 import { useAuth } from "../../components/common/auth-context";
 
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useEffect } from "react";
 export default function DashboardLayout({ children }) {
   const { user, loading } = useAuth();
   const router = useRouter();
-
+  const pathname = usePathname();
   useEffect(() => {
     if (!loading && !user) {
       router.push("/login");
+      return;
     }
-  }, [user, loading, router]);
+
+    if (!loading && user) {
+      if (pathname.startsWith("/kitchen") && user.role === "cashier") {
+        router.push("/cashier");
+      } else if (pathname.startsWith("/cashier") && user.role === "kitchen") {
+        router.push("/kitchen");
+      }
+    }
+  }, [user, loading, router, pathname]);
 
   if (loading) {
     return (

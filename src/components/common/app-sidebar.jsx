@@ -42,12 +42,14 @@ export const CORE_LIST = [
   {
     icon: Coins,
     title: "Cashier POS",
-    url: "cashier", // urlnya sesuai kata awal kayak "/admin" atau "/kitchen"
+    url: "cashier",
+    allowedRoles: ["admin", "cashier"],
   },
   {
     icon: ChefHat,
     title: "Kitchen KDS",
     url: "kitchen",
+    allowedRoles: ["admin", "kitchen"],
   },
 ];
 
@@ -90,7 +92,9 @@ export function AppSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {CORE_LIST.map((item) => (
+              {CORE_LIST.filter(
+                (item) => user && item.allowedRoles.includes(user.role),
+              ).map((item) => (
                 <SidebarMenuItem key={item.url}>
                   <SidebarMenuButton
                     render={<Link href={`/${item.url}`} />}
