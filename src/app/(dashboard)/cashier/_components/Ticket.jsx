@@ -25,6 +25,9 @@ export default function Ticket({ ticketNumber, customerName, onCustomerNameChang
 
   const [submitting, setSubmitting] = useState(false);
   const [lastTicket, setLastTicket] = useState(null);
+  const [nameError, setNameError] = useState(false);
+
+  const isNameEmpty = customerName.trim() === "";
 
   const handleAddItem = () => {
     if (!activeProduct) return;
@@ -34,6 +37,11 @@ export default function Ticket({ ticketNumber, customerName, onCustomerNameChang
 
   const handleCharge = async () => {
     if (items.length === 0 || submitting) return;
+
+    if (isNameEmpty) {
+      setNameError(true);
+      return;
+    }
     setSubmitting(true);
 
     try {
@@ -41,7 +49,7 @@ export default function Ticket({ ticketNumber, customerName, onCustomerNameChang
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          customer_name: customerName.trim() || null,
+          customer_name: customerName.trim(),
           subtotal: Math.round(subtotal),
           tax: Math.round(tax),
           total: Math.round(total),
@@ -86,10 +94,23 @@ export default function Ticket({ ticketNumber, customerName, onCustomerNameChang
         <input
           type="text"
           value={customerName}
-          onChange={(e) => onCustomerNameChange(e.target.value)}
+          onChange={(e) => {
+            onCustomerNameChange(e.target.value);
+            if (nameError) setNameError(false);
+          }}
           placeholder="Nama pelanggan"
-          className="mt-2 w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+          aria-invalid={nameError}
+          className={`mt-2 w-full rounded-md border bg-background px-3 py-1.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 ${
+            nameError
+              ? "border-destructive focus:ring-destructive"
+              : "border-border focus:ring-primary"
+          }`}
         />
+        {nameError && (
+          <p className="mt-1 text-xs text-destructive">
+            Nama pelanggan wajib diisi.
+          </p>
+        )}
       </div>
 
       {/* List item */}
@@ -197,7 +218,7 @@ export default function Ticket({ ticketNumber, customerName, onCustomerNameChang
         )}
         <button
           onClick={handleCharge}
-          disabled={items.length === 0 || submitting}
+          disabled={items.length === 0 || submitting || isNameEmpty}
           className="w-full rounded-lg bg-primary py-3 font-semibold text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
         >
           {submitting ? "Mengirim..." : `Charge Terminal ${formatRupiah(total)}`}
