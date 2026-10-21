@@ -67,7 +67,7 @@ export default function DashboardLayout({ children }) {
                 <Separator orientation="vertical" className="h-4 self-center" />
                 <DashboardDate />
                 <Separator orientation="vertical" className="h-4 self-center" />
-                <DashboardRecall />
+                {user.role !== "kitchen" && <DashboardRecall />}
                 <Separator orientation="vertical" className="h-4 self-center" />
                 <ModeToggle />
               </div>
