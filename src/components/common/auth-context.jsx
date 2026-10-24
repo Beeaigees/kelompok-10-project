@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { apiFetch } from "@/lib/api";
 
 const AuthContext = createContext();
 
@@ -43,10 +44,20 @@ export function AuthProvider({ children }) {
     window.location.href = "/"; // Memaksa reload agar context mengambil ulang data /api/me
   };
 
-  const logout = () => {
-    localStorage.removeItem("access_token");
-    setUser(null);
-    router.push("/login"); // Arahkan kembali ke halaman login
+  const logout = async () => {
+    try {
+      // Minta server mencabut token (blacklist) SELAMA token masih terpasang,
+      // karena apiFetch membaca token dari localStorage untuk header Authorization.
+      await apiFetch("/auth/logout", { method: "POST" });
+    } catch (err) {
+      // Token sudah kedaluwarsa/ditolak: tetap lanjut logout di sisi klien
+      console.error("Gagal mencabut token di server:", err);
+    } finally {
+      localStorage.removeItem("access_token");
+      setUser(null);
+      // replace() agar tombol Back tidak membuka lagi halaman yang butuh sesi
+      router.replace("/login");
+    }
   };
 
   return (

@@ -8,8 +8,7 @@ import {
   useState,
 } from "react";
 import { supabase } from "@/lib/supabase";
-
-const API = "http://localhost:8000/api";
+import { apiFetch } from "@/lib/api";
 
 const ReadyOrdersContext = createContext(null);
 
@@ -18,7 +17,7 @@ export function ReadyOrdersProvider({ children }) {
 
   const loadOrders = useCallback(async () => {
     try {
-      const res = await fetch(`${API}/orders?status=READY`);
+      const res = await apiFetch("/orders?status=READY");
       if (res.ok) setOrders(await res.json());
     } catch (err) {
       console.error("Gagal memuat order READY:", err);
@@ -46,10 +45,23 @@ export function ReadyOrdersProvider({ children }) {
       // optimistic: langsung hilang dari daftar, badge ikut turun
       setOrders((prev) => prev.filter((o) => o.id !== orderId));
 
-      const res = await fetch(`${API}/orders/${orderId}/serve`, {
-        method: "PATCH",
-      });
-      if (!res.ok) loadOrders(); // gagal → sinkron ulang dari server
+      try {
+        const res = await apiFetch(`/orders/${orderId}/serve`, {
+          method: "PATCH",
+        });
+        if (!res.ok) {
+          console.error(
+            "PATCH /orders/serve gagal:",
+            res.status,
+            await res.text()
+          );
+          throw new Error("Gagal menandai pesanan sebagai disajikan.");
+        }
+      } catch (err) {
+        console.error(err);
+        alert(err.message || "Gagal menandai pesanan sebagai disajikan.");
+        loadOrders(); // gagal → sinkron ulang dari server
+      }
     },
     [loadOrders]
   );
