@@ -2,7 +2,7 @@ import os
 import uuid
 import bcrypt
 import enum
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, List
 
 from dotenv import load_dotenv
@@ -75,6 +75,21 @@ class Profile(Base):
     username = Column(String, unique=True, index=True, nullable=False)
     password = Column(String, nullable=False)  # password yang sudah di-hash
     role = Column(SQLEnum(UserRole), default=UserRole.cashier)
+
+
+class RevokedToken(Base):
+    """Blacklist token yang sudah di-logout.
+
+    JWT bersifat stateless: server tidak menyimpan sesi, jadi token yang sudah
+    keluar tetap valid sampai kedaluwarsa. Tabel ini menyimpan `jti` (ID unik
+    tiap token) agar token tersebut bisa ditolak sebelum masa berlakunya habis.
+    """
+
+    __tablename__ = "revoked_tokens"
+
+    jti = Column(String, primary_key=True, index=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    revoked_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
 class Product(Base):
@@ -163,7 +178,7 @@ def order_query(db: Session):
 # =========================================================
 # 4. AUTH
 # =========================================================
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -181,7 +196,13 @@ def get_password_hash(password):
 
 def create_access_token(username: str, role: str) -> str:
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    payload = {"sub": username, "role": role, "exp": expire}
+    payload = {
+        "sub": username,
+        "role": role,
+        # jti = ID unik token, dipakai untuk mencabut token ini saat logout
+        "jti": str(uuid.uuid4()),
+        "exp": expire,
+    }
     return jwt.encode(payload, JWT_SECRET, algorithm=ALGORITHM)
 
 
@@ -198,12 +219,35 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     except JWTError:
         raise credentials_exception
 
+    # Tolak token yang sudah di-logout (ada di blacklist), walau belum kedaluwarsa
+    jti = payload.get("jti")
+    if jti and db.query(RevokedToken).filter(RevokedToken.jti == jti).first():
+        raise credentials_exception
+
     user = db.query(Profile).filter(Profile.username == username).first()
     if user is None:
         raise credentials_exception
 
     return user
 
+
+def require_roles(*allowed_roles: UserRole):
+    """Factory dependency: hanya user dengan role tertentu yang boleh lewat."""
+    def role_checker(current_user: Profile = Depends(get_current_user)) -> Profile:
+        if current_user.role not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Anda tidak memiliki izin untuk mengakses resource ini",
+            )
+        return current_user
+    return role_checker
+
+
+# Shortcut supaya endpoint tetap rapi
+admin_only       = require_roles(UserRole.admin)
+cashier_or_admin = require_roles(UserRole.admin, UserRole.cashier)
+kitchen_or_admin = require_roles(UserRole.admin, UserRole.kitchen)
+any_staff        = require_roles(UserRole.admin, UserRole.cashier, UserRole.kitchen)
 
 # =========================================================
 # 5. APP & MIDDLEWARE
@@ -239,8 +283,36 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 
 
 @app.post("/api/auth/logout")
-def logout():
-    return {"message": "Logout berhasil. Hapus token di frontend."}
+def logout(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    """Mencabut token yang sedang dipakai dengan memasukkannya ke blacklist."""
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[ALGORITHM])
+    except JWTError:
+        # Token sudah rusak/kedaluwarsa: tidak ada yang perlu dicabut
+        return {"message": "Token sudah tidak berlaku"}
+
+    jti = payload.get("jti")
+    if not jti:
+        # Token lama (dibuat sebelum ada klaim jti) tidak bisa dicabut per token
+        return {"message": "Token tidak memiliki jti, silakan hapus token di frontend"}
+
+    already_revoked = db.query(RevokedToken).filter(RevokedToken.jti == jti).first()
+    if not already_revoked:
+        expires_at = (
+            datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
+            if payload.get("exp")
+            else datetime.now(timezone.utc)
+            + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        )
+        db.add(RevokedToken(jti=jti, expires_at=expires_at))
+
+        # Housekeeping: buang entri yang tokennya sudah kedaluwarsa sendiri
+        db.query(RevokedToken).filter(RevokedToken.expires_at < func.now()).delete(
+            synchronize_session=False
+        )
+        db.commit()
+
+    return {"message": "Logout berhasil. Token telah dicabut."}
 
 
 # =========================================================
@@ -250,7 +322,6 @@ def logout():
 def list_products(db: Session = Depends(get_db)):
     return db.query(Product).order_by(Product.created_at.asc(), Product.id).all()
 
-
 @app.get("/api/products/{product_id}", response_model=ProductOut)
 def get_product(product_id: uuid.UUID, db: Session = Depends(get_db)):
     product = db.query(Product).filter(Product.id == product_id).first()
@@ -258,18 +329,16 @@ def get_product(product_id: uuid.UUID, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Produk tidak ditemukan")
     return product
 
-
 @app.post("/api/products", response_model=ProductOut)
-def create_product(data: ProductCreate, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def create_product(data: ProductCreate, db: Session = Depends(get_db), current_user: Profile = Depends(admin_only)):
     product = Product(name=data.name, price=data.price)
     db.add(product)
     db.commit()
     db.refresh(product)
     return product
 
-
 @app.patch("/api/products/{product_id}", response_model=ProductOut)
-def update_product(product_id: uuid.UUID, data: ProductCreate, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def update_product(product_id: uuid.UUID, data: ProductCreate, db: Session = Depends(get_db), current_user: Profile = Depends(admin_only)):
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Produk tidak ditemukan")
@@ -279,9 +348,8 @@ def update_product(product_id: uuid.UUID, data: ProductCreate, db: Session = Dep
     db.refresh(product)
     return product
 
-
 @app.delete("/api/products/{product_id}")
-def delete_product(product_id: uuid.UUID, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def delete_product(product_id: uuid.UUID, db: Session = Depends(get_db), current_user: Profile = Depends(admin_only)):
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Produk tidak ditemukan")
@@ -297,18 +365,16 @@ def delete_product(product_id: uuid.UUID, db: Session = Depends(get_db), _=Depen
 def list_modifier_groups(db: Session = Depends(get_db)):
     return db.query(ModifierGroup).options(joinedload(ModifierGroup.options)).all()
 
-
 @app.post("/api/modifier-groups", response_model=ModifierGroupOut)
-def create_modifier_group(data: ModifierGroupCreate, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def create_modifier_group(data: ModifierGroupCreate, db: Session = Depends(get_db), current_user: Profile = Depends(admin_only)):
     group = ModifierGroup(name=data.name)
     db.add(group)
     db.commit()
     db.refresh(group)
     return group
 
-
 @app.post("/api/modifier-groups/{group_id}/options", response_model=ModifierOptionOut)
-def add_modifier_option(group_id: uuid.UUID, data: ModifierOptionCreate, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def add_modifier_option(group_id: uuid.UUID, data: ModifierOptionCreate, db: Session = Depends(get_db), current_user: Profile = Depends(admin_only)):
     group = db.query(ModifierGroup).filter(ModifierGroup.id == group_id).first()
     if not group:
         raise HTTPException(status_code=404, detail="Grup modifier tidak ditemukan")
@@ -318,9 +384,8 @@ def add_modifier_option(group_id: uuid.UUID, data: ModifierOptionCreate, db: Ses
     db.refresh(option)
     return option
 
-
 @app.patch("/api/modifier-options/{option_id}", response_model=ModifierOptionOut)
-def update_modifier_option(option_id: uuid.UUID, data: ModifierOptionCreate, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def update_modifier_option(option_id: uuid.UUID, data: ModifierOptionCreate, db: Session = Depends(get_db), current_user: Profile = Depends(admin_only)):
     option = db.query(ModifierOption).filter(ModifierOption.id == option_id).first()
     if not option:
         raise HTTPException(status_code=404, detail="Opsi modifier tidak ditemukan")
@@ -330,9 +395,8 @@ def update_modifier_option(option_id: uuid.UUID, data: ModifierOptionCreate, db:
     db.refresh(option)
     return option
 
-
 @app.delete("/api/modifier-options/{option_id}")
-def delete_modifier_option(option_id: uuid.UUID, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def delete_modifier_option(option_id: uuid.UUID, db: Session = Depends(get_db), current_user: Profile = Depends(admin_only)):
     option = db.query(ModifierOption).filter(ModifierOption.id == option_id).first()
     if not option:
         raise HTTPException(status_code=404, detail="Opsi modifier tidak ditemukan")
@@ -344,22 +408,23 @@ def delete_modifier_option(option_id: uuid.UUID, db: Session = Depends(get_db), 
 # =========================================================
 # 9. USER ENDPOINTS
 # =========================================================
-@app.post("/api/setup-user")
-def setup_user(user: UserCreate, db: Session = Depends(get_db)):
-    existing_user = db.query(Profile).filter(Profile.username == user.username).first()
-    if existing_user:
-        raise HTTPException(status_code=400, detail="Username sudah digunakan")
 
-    new_user = Profile(
-        username=user.username,
-        password=get_password_hash(user.password),
-        role=user.role,
-    )
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
+# @app.post("/api/setup-user")
+# def setup_user(user: UserCreate, db: Session = Depends(get_db)):
+#     existing_user = db.query(Profile).filter(Profile.username == user.username).first()
+#     if existing_user:
+#         raise HTTPException(status_code=400, detail="Username sudah digunakan")
 
-    return {"message": f"User {new_user.username} dengan role {new_user.role} berhasil dibuat"}
+#     new_user = Profile(
+#         username=user.username,
+#         password=get_password_hash(user.password),
+#         role=user.role,
+#     )
+#     db.add(new_user)
+#     db.commit()
+#     db.refresh(new_user)
+
+#     return {"message": f"User {new_user.username} dengan role {new_user.role} berhasil dibuat"}
 
 
 @app.get("/api/me")
@@ -378,7 +443,7 @@ VALID_STATUSES = {"PENDING", "PREPARING", "READY", "SERVED"}
 
 
 @app.post("/api/orders", response_model=OrderOut)
-def create_order(data: OrderCreate, db: Session = Depends(get_db)):
+def create_order(data: OrderCreate, db: Session = Depends(get_db), current_user: Profile = Depends(cashier_or_admin)):
     # ticket_number TIDAK diisi di sini, database yang menghasilkannya (identity column)
     order = Order(
         customer_name=data.customer_name,
@@ -416,6 +481,7 @@ def create_order(data: OrderCreate, db: Session = Depends(get_db)):
 def list_orders(
     status_filter: Optional[str] = Query(None, alias="status", description="Contoh: PENDING,PREPARING"),
     db: Session = Depends(get_db),
+    current_user: Profile = Depends(any_staff),
 ):
     query = order_query(db)
     if status_filter:
@@ -428,7 +494,7 @@ def list_orders(
 
 
 @app.get("/api/orders/{order_id}", response_model=OrderOut)
-def get_order(order_id: uuid.UUID, db: Session = Depends(get_db)):
+def get_order(order_id: uuid.UUID, db: Session = Depends(get_db), current_user: Profile = Depends(any_staff)):
     order = order_query(db).filter(Order.id == order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Order tidak ditemukan")
@@ -436,7 +502,7 @@ def get_order(order_id: uuid.UUID, db: Session = Depends(get_db)):
 
 
 @app.delete("/api/orders/{order_id}")
-def cancel_order(order_id: uuid.UUID, db: Session = Depends(get_db)):
+def cancel_order(order_id: uuid.UUID, db: Session = Depends(get_db), current_user: Profile = Depends(cashier_or_admin)):
     order = db.query(Order).filter(Order.id == order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Order tidak ditemukan")
@@ -446,7 +512,7 @@ def cancel_order(order_id: uuid.UUID, db: Session = Depends(get_db)):
 
 
 @app.patch("/api/orders/{order_id}/start", response_model=OrderOut)
-def start_order(order_id: uuid.UUID, estimated_duration_sec: int, db: Session = Depends(get_db)):
+def start_order(order_id: uuid.UUID, estimated_duration_sec: int, db: Session = Depends(get_db),current_user: Profile = Depends(kitchen_or_admin)):
     order = db.query(Order).filter(Order.id == order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Order tidak ditemukan")
@@ -458,7 +524,7 @@ def start_order(order_id: uuid.UUID, estimated_duration_sec: int, db: Session = 
 
 
 @app.patch("/api/orders/{order_id}/ready", response_model=OrderOut)
-def ready_order(order_id: uuid.UUID, db: Session = Depends(get_db)):
+def ready_order(order_id: uuid.UUID, db: Session = Depends(get_db) ,current_user: Profile = Depends(kitchen_or_admin)):
     order = db.query(Order).filter(Order.id == order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Order tidak ditemukan")
@@ -469,7 +535,7 @@ def ready_order(order_id: uuid.UUID, db: Session = Depends(get_db)):
 
 
 @app.patch("/api/orders/{order_id}/serve", response_model=OrderOut)
-def serve_order(order_id: uuid.UUID, db: Session = Depends(get_db)):
+def serve_order(order_id: uuid.UUID, db: Session = Depends(get_db), current_user: Profile = Depends(cashier_or_admin)):
     order = db.query(Order).filter(Order.id == order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Order tidak ditemukan")
