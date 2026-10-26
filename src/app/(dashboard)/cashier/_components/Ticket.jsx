@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { apiFetch } from "@/lib/api";
 import { useSelection } from "./SelectionContext";
 import { useCart } from "./CartContext";
 
@@ -8,7 +9,11 @@ function formatRupiah(value) {
   return `Rp ${Math.round(value).toLocaleString("id-ID")}`;
 }
 
-export default function Ticket({ ticketNumber, customerName, onCustomerNameChange }) {
+export default function Ticket({
+  ticketNumber,
+  customerName,
+  onCustomerNameChange,
+}) {
   const {
     items,
     addItem,
@@ -45,7 +50,7 @@ export default function Ticket({ ticketNumber, customerName, onCustomerNameChang
     setSubmitting(true);
 
     try {
-      const res = await fetch("http://localhost:8000/api/orders", {
+      const res = await apiFetch("/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -64,7 +69,10 @@ export default function Ticket({ ticketNumber, customerName, onCustomerNameChang
         }),
       });
 
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) {
+        console.error("POST /orders gagal:", res.status, await res.text());
+        throw new Error("Gagal mengirim pesanan ke kitchen.");
+      }
 
       const order = await res.json();
       setLastTicket(order.ticket_number);
@@ -72,7 +80,7 @@ export default function Ticket({ ticketNumber, customerName, onCustomerNameChang
       onCustomerNameChange("");
     } catch (err) {
       console.error(err);
-      alert("Gagal mengirim pesanan ke kitchen.");
+      alert(err.message || "Gagal mengirim pesanan ke kitchen.");
     } finally {
       setSubmitting(false);
     }
@@ -116,7 +124,9 @@ export default function Ticket({ ticketNumber, customerName, onCustomerNameChang
       {/* List item */}
       <div className="flex-1 space-y-3 overflow-y-auto p-4 min-h-0">
         {items.length === 0 && (
-          <p className="text-sm text-muted-foreground">Belum ada item di ticket.</p>
+          <p className="text-sm text-muted-foreground">
+            Belum ada item di ticket.
+          </p>
         )}
 
         {items.map((item) => (
@@ -130,7 +140,9 @@ export default function Ticket({ ticketNumber, customerName, onCustomerNameChang
                   </p>
                 )}
                 {item.note && (
-                  <p className="text-xs italic text-muted-foreground">"{item.note}"</p>
+                  <p className="text-xs italic text-muted-foreground">
+                    "{item.note}"
+                  </p>
                 )}
               </div>
               <p className="text-sm font-medium">
@@ -221,7 +233,9 @@ export default function Ticket({ ticketNumber, customerName, onCustomerNameChang
           disabled={items.length === 0 || submitting || isNameEmpty}
           className="w-full rounded-lg bg-primary py-3 font-semibold text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {submitting ? "Mengirim..." : `Charge Terminal ${formatRupiah(total)}`}
+          {submitting
+            ? "Mengirim..."
+            : `Charge Terminal ${formatRupiah(total)}`}
         </button>
       </div>
     </aside>
