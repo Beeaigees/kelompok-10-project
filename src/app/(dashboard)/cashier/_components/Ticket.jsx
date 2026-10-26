@@ -94,9 +94,7 @@ export default function Ticket({
           <p className="text-lg font-semibold">
             {ticketNumber ? `Ticket #${ticketNumber}` : "Ticket baru"}
           </p>
-          <span className="rounded-full bg-primary px-2 py-1 text-xs text-primary-foreground">
-            In Progress
-          </span>
+          
         </div>
 
         <input
